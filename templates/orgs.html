@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organizations — TotalWare</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0:#070b16; --bg-1:#0b1120; --card:#111a2e; --card-2:#0e1626;
+    --border:rgba(255,255,255,0.08); --border-2:rgba(255,255,255,0.14);
+    --txt:#e9eef9; --muted:#8794ad; --accent:#7c5cff; --accent-2:#22d3ee;
+    --danger:#ff4d6a; --warn:#ffb020; --ok:#2ee6a6; --info:#38bdf8;
+    --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+    background:var(--bg-0); color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; z-index:-2;
+    background:
+      radial-gradient(900px 500px at 15% -5%, rgba(124,92,255,0.18), transparent 60%),
+      radial-gradient(800px 500px at 95% 0%, rgba(34,211,238,0.14), transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  }
+  .navbar {
+    backdrop-filter:blur(14px); background:rgba(10,15,28,0.72);
+    border-bottom:1px solid var(--border); padding:0 1.5rem; height:58px;
+    display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100;
+  }
+  .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .nav-logo-icon {
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(124,92,255,0.45);
+  }
+  .nav-logo-text { font-size:19px; font-weight:800; letter-spacing:-0.5px; }
+  .nav-logo-text span { background:linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .nav-tagline { font-size:12px; color:var(--muted); margin-left:4px; }
+  .nav-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .nav-badge { font-size:11px; padding:4px 11px; border-radius:20px; background:rgba(255,255,255,0.05); color:var(--muted); border:1px solid var(--border); text-decoration:none; }
+  .nav-badge.active { color:var(--accent-2); border-color:rgba(34,211,238,0.4); }
+
+  .wrap { max-width:960px; margin:0 auto; padding:2.5rem 1.5rem 4rem; }
+  h1 { font-size:1.9rem; font-weight:800; letter-spacing:-1px; margin-bottom:0.4rem; }
+  h1 span { background:linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:2rem; }
+
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.4rem 1.5rem; margin-bottom:1.4rem; }
+  .panel h2 { font-size:1.05rem; font-weight:700; margin-bottom:1rem; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
+  @media (max-width:640px){ .grid2 { grid-template-columns:1fr; } }
+
+  .field { display:flex; gap:10px; }
+  .field input {
+    flex:1; padding:11px 14px; border-radius:11px; background:rgba(255,255,255,0.04);
+    border:1px solid var(--border-2); color:var(--txt); font-size:14px; font-family:inherit;
+  }
+  .field input:focus { outline:none; border-color:var(--accent); }
+  .btn {
+    padding:11px 18px; border-radius:11px; border:none;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;
+    font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .btn:hover { transform:translateY(-1px); }
+  .err { color:var(--danger); font-size:12px; margin-top:8px; min-height:16px; }
+
+  .org-item { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+  .org-item:last-child { border-bottom:none; }
+  .org-item:hover .org-name { color:var(--accent-2); }
+  .org-ico { width:38px; height:38px; border-radius:10px; background:rgba(124,92,255,0.15); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .org-name { font-size:15px; font-weight:600; }
+  .org-sub { font-size:12px; color:var(--muted); font-family:var(--mono); }
+
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.4rem; }
+  @media (max-width:640px){ .stats { grid-template-columns:repeat(2,1fr); } }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.1rem; }
+  .stat .v { font-size:1.7rem; font-weight:800; line-height:1; }
+  .stat .l { font-size:11px; color:var(--muted); margin-top:5px; text-transform:uppercase; letter-spacing:0.5px; }
+  .stat.members .v { color:var(--info); } .stat.total .v { color:var(--txt); }
+  .stat.mal .v { color:var(--danger); } .stat.clean .v { color:var(--ok); }
+
+  .invite { display:flex; align-items:center; gap:10px; background:rgba(124,92,255,0.08); border:1px solid rgba(124,92,255,0.25); border-radius:11px; padding:11px 14px; margin-bottom:1.4rem; }
+  .invite code { font-family:var(--mono); font-size:14px; color:var(--accent-2); flex:1; }
+  .copy-btn { padding:7px 13px; border-radius:9px; border:1px solid var(--border-2); background:rgba(255,255,255,0.05); color:var(--txt); cursor:pointer; font-size:12px; font-family:inherit; }
+
+  .row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .row:last-child { border-bottom:none; }
+  .row .name { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge-v { font-size:10px; font-weight:700; padding:3px 9px; border-radius:14px; }
+  .v-mal { background:rgba(255,77,106,0.15); color:var(--danger); }
+  .v-susp { background:rgba(255,176,32,0.15); color:var(--warn); }
+  .v-clean { background:rgba(46,230,166,0.15); color:var(--ok); }
+  .v-puw { background:rgba(255,214,0,0.13); color:#e0c000; }
+  .role { font-size:10px; padding:2px 8px; border-radius:12px; background:rgba(255,255,255,0.06); color:var(--muted); }
+  .role.owner { background:rgba(124,92,255,0.15); color:var(--accent-2); }
+  .muted-time { font-size:11px; color:var(--muted); }
+  .empty { color:var(--muted); font-size:13px; padding:1.2rem 0; text-align:center; }
+  .back { color:var(--accent-2); text-decoration:none; font-size:13px; cursor:pointer; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/><path d="M9 11.5l2 2 4-4"/>
+      </svg>
+    </div>
+    <div class="nav-logo-text">Total<span>Ware</span></div>
+  </a>
+  <span class="nav-tagline">Universal Malware Analysis</span>
+  <div class="nav-right">
+    <a class="nav-badge active" href="/organizations">👥 Teams</a>
+    <a class="nav-badge" href="/feed">🌐 Feed</a>
+    <a class="nav-badge" href="/history">🕘 History</a>
+    <a class="nav-badge" href="/">🔍 New Scan</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <h1>Organizations</h1>
+  <p class="sub">Create a team, invite members, and monitor all their scans in one dashboard.</p>
+  <div id="content"></div>
+</div>
+
+<script>
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTime(iso){ if(!iso) return '—'; return new Date(iso+'Z').toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(iso){ if(!iso) return '—'; return new Date(iso+'Z').toLocaleDateString([], {day:'2-digit',month:'short',year:'2-digit'}); }
+function verdictClass(v){ v=(v||'').toUpperCase(); if(v==='MALICIOUS')return 'v-mal'; if(v==='SUSPICIOUS')return 'v-susp'; if(v.includes('UNWANTED'))return 'v-puw'; return 'v-clean'; }
+function scoreColor(s){ if(s>=75)return 'var(--danger)'; if(s>=50)return 'var(--warn)'; if(s>=25)return '#e0c000'; return 'var(--ok)'; }
+
+async function loadList() {
+  const content = document.getElementById('content');
+  const res = await fetch('/api/orgs');
+  if (res.status === 401) {
+    content.innerHTML = '<div class="panel"><div class="empty">🔒 Log in to create or join a team.<br><br><a class="back" href="/login">Login</a> · <a class="back" href="/signup">Sign up</a></div></div>';
+    return;
+  }
+  const data = await res.json();
+  const orgs = data.orgs || [];
+
+  content.innerHTML = `
+    <div class="grid2">
+      <div class="panel">
+        <h2>Create a team</h2>
+        <div class="field">
+          <input type="text" id="org-name" placeholder="Team name (e.g. Acme Security)" maxlength="128">
+          <button class="btn" onclick="createOrg()">Create</button>
+        </div>
+        <div class="err" id="create-err"></div>
+      </div>
+      <div class="panel">
+        <h2>Join a team</h2>
+        <div class="field">
+          <input type="text" id="join-code" placeholder="Invite code">
+          <button class="btn" onclick="joinOrg()">Join</button>
+        </div>
+        <div class="err" id="join-err"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Your teams (${orgs.length})</h2>
+      <div id="orglist"></div>
+    </div>`;
+
+  const list = document.getElementById('orglist');
+  if (!orgs.length) {
+    list.innerHTML = '<div class="empty">You are not part of any team yet. Create one or join with an invite code.</div>';
+    return;
+  }
+  list.innerHTML = orgs.map(o => `
+    <div class="org-item" onclick="openOrg(${o.id})">
+      <div class="org-ico">👥</div>
+      <div style="flex:1;">
+        <div class="org-name">${escapeHtml(o.name)}</div>
+        <div class="org-sub">Invite code: ${o.invite_code}</div>
+      </div>
+      <span class="back">Open dashboard →</span>
+    </div>`).join('');
+}
+
+async function createOrg() {
+  const name = document.getElementById('org-name').value.trim();
+  const err = document.getElementById('create-err');
+  err.textContent = '';
+  const res = await fetch('/api/orgs', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  const data = await res.json();
+  if (data.error) { err.textContent = data.error; return; }
+  loadList();
+}
+
+async function joinOrg() {
+  const code = document.getElementById('join-code').value.trim();
+  const err = document.getElementById('join-err');
+  err.textContent = '';
+  const res = await fetch('/api/orgs/join', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invite_code: code })
+  });
+  const data = await res.json();
+  if (data.error) { err.textContent = data.error; return; }
+  loadList();
+}
+
+async function openOrg(id) {
+  const content = document.getElementById('content');
+  const res = await fetch('/api/org/' + id);
+  const d = await res.json();
+  if (d.error) { content.innerHTML = '<div class="panel"><div class="empty">' + d.error + '</div></div>'; return; }
+
+  const s = d.stats || {};
+  const alertsHtml = (d.alerts || []).length ? d.alerts.map(a => `
+    <div class="row">
+      <span class="badge-v ${verdictClass(a.verdict)}">${a.verdict}</span>
+      <span class="name">${escapeHtml(a.filename||'unknown')}</span>
+      <span style="color:${scoreColor(a.score)};font-weight:700;">${a.score}</span>
+      <span class="muted-time">${fmtTime(a.created_at)}</span>
+    </div>`).join('') : '<div class="empty">No threats detected across the team. 🎉</div>';
+
+  const membersHtml = (d.members || []).map(m => `
+    <div class="row">
+      <span class="name">${escapeHtml(m.username)} <span style="color:var(--muted);">· ${escapeHtml(m.email)}</span></span>
+      <span class="role ${m.role==='owner'?'owner':''}">${m.role}</span>
+      <span class="muted-time">${fmtDate(m.joined_at)}</span>
+    </div>`).join('');
+
+  const scansHtml = (d.scans || []).length ? d.scans.map(sc => `
+    <div class="row">
+      <span class="badge-v ${verdictClass(sc.verdict)}">${sc.verdict}</span>
+      <span class="name">${escapeHtml(sc.filename||'unknown')}</span>
+      <span style="color:${scoreColor(sc.score)};font-weight:700;">${sc.score}</span>
+      <span class="muted-time">${fmtTime(sc.created_at)}</span>
+    </div>`).join('') : '<div class="empty">No scans yet from team members.</div>';
+
+  content.innerHTML = `
+    <a class="back" onclick="loadList()">← Back to teams</a>
+    <h2 style="margin:1rem 0 1.2rem;font-size:1.4rem;">${escapeHtml(d.org.name)}</h2>
+    <div class="invite">
+      <span style="color:var(--muted);font-size:13px;">Invite code:</span>
+      <code>${d.org.invite_code}</code>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('${d.org.invite_code}');this.textContent='Copied!';">Copy</button>
+    </div>
+    <div class="stats">
+      <div class="stat members"><div class="v">${s.members||0}</div><div class="l">Members</div></div>
+      <div class="stat total"><div class="v">${s.total||0}</div><div class="l">Total Scans</div></div>
+      <div class="stat mal"><div class="v">${s.malicious||0}</div><div class="l">Threats</div></div>
+      <div class="stat clean"><div class="v">${s.clean||0}</div><div class="l">Clean</div></div>
+    </div>
+    <div class="panel">
+      <h2>🚨 Alerts — recent threats</h2>
+      ${alertsHtml}
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h2>Members (${(d.members||[]).length})</h2>
+        ${membersHtml}
+      </div>
+      <div class="panel">
+        <h2>Recent team scans</h2>
+        ${scansHtml}
+      </div>
+    </div>`;
+}
+
+loadList();
+</script>
+</body>
+</html>

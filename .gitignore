@@ -1,0 +1,16 @@
+# Secrets & local data
+.env
+totalware.db
+*.db
+
+# Uploaded files & malware samples — NEVER commit these to a public repo
+uploads/
+Malware_Samples/
+*.apk
+*.exe
+*.dll
+
+# Python cache & test artifacts
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TotalWare — Universal Malware Analysis Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+  :root {
+    --bg-0: #070b16;
+    --bg-1: #0b1120;
+    --card: #111a2e;
+    --card-2: #0e1626;
+    --border: rgba(255,255,255,0.08);
+    --border-2: rgba(255,255,255,0.14);
+    --txt: #e9eef9;
+    --muted: #8794ad;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --danger: #ff4d6a;
+    --warn: #ffb020;
+    --ok: #2ee6a6;
+    --info: #38bdf8;
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg-0);
+    color: var(--txt);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(900px 500px at 15% -5%, rgba(124,92,255,0.18), transparent 60%),
+      radial-gradient(800px 500px at 95% 0%, rgba(34,211,238,0.14), transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  }
+
+  ::selection { background: rgba(124,92,255,0.35); }
+
+  /* ── NAVBAR ── */
+  .navbar {
+    backdrop-filter: blur(14px);
+    background: rgba(10,15,28,0.72);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem; height: 58px;
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .nav-logo-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 6px 18px rgba(124,92,255,0.45);
+  }
+  .nav-logo-text { font-size: 19px; font-weight: 800; color: var(--txt); letter-spacing: -0.5px; }
+  .nav-logo-text span { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .nav-tagline { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .nav-badge {
+    font-size: 11px; padding: 4px 11px; border-radius: 20px;
+    background: rgba(255,255,255,0.05); color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .nav-badge.live { color: var(--ok); }
+  .nav-badge.live::before { content:'●'; margin-right:5px; animation: pulse 1.4s infinite; }
+
+  /* ── HERO ── */
+  .hero { padding: 3.2rem 1.5rem 5rem; text-align: center; position: relative; }
+  .hero h1 { font-size: 2.6rem; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 0.6rem; }
+  .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { font-size: 15px; color: var(--muted); margin-bottom: 2.2rem; max-width: 560px; margin-left:auto; margin-right:auto; }
+
+  /* ── UPLOAD ── */
+  .upload-container { max-width: 680px; margin: 0 auto; }
+  .drop-zone {
+    background: rgba(255,255,255,0.025);
+    border: 1.5px dashed var(--border-2);
+    border-radius: 18px; padding: 2.6rem 2rem;
+    cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    background: rgba(124,92,255,0.07);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(124,92,255,0.08);
+  }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop-icon {
+    width: 60px; height: 60px; margin: 0 auto 1rem; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(124,92,255,0.2), rgba(34,211,238,0.2));
+    border: 1px solid var(--border-2);
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+  .drop-zone h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .drop-zone p { font-size: 13px; color: var(--muted); }
+
+  .file-types { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 1.5rem; }
+  .ft-badge {
+    font-size: 11px; padding: 4px 11px; border-radius: 20px;
+    background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid var(--border);
+  }
+  .ft-badge.hot {
+    background: rgba(124,92,255,0.14); color: #c9bdff; border-color: rgba(124,92,255,0.3); font-weight: 600;
+  }
+
+  /* ── SCAN BTN ── */
+  .scan-btn {
+    width: 100%; margin-top: 1.25rem; padding: 15px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; border: none; border-radius: 13px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    box-shadow: 0 8px 28px rgba(124,92,255,0.4);
+  }
+  .scan-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(124,92,255,0.5); }
+  .scan-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; filter: grayscale(0.4); }
+
+  .selected-file {
+    background: rgba(255,255,255,0.04); border-radius: 11px; padding: 11px 15px;
+    margin-top: 1rem; display: none; align-items: center; gap: 10px; border: 1px solid var(--border);
+  }
+  .selected-file.show { display: flex; }
+  .selected-file span { font-size: 13px; color: var(--txt); }
+  .selected-file .fname { font-weight: 600; }
+
+  /* ── MAIN ── */
+  .main { max-width: 920px; margin: -3rem auto 0; padding: 0 1.25rem 4rem; position: relative; z-index: 10; }
+
+  /* ── PROGRESS ── */
+  .progress-card {
+    background: var(--card); border-radius: 18px; padding: 1.5rem;
+    border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    display: none; margin-bottom: 1.5rem;
+  }
+  .progress-card.active { display: block; }
+  .progress-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+  .spin { width: 20px; height: 20px; border: 2.5px solid rgba(124,92,255,0.25); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-head span { font-size: 14px; font-weight: 600; }
+  .progress-bar-wrap { height: 8px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 99px; width: 0%; transition: width 0.5s ease; }
+  .progress-steps { display: flex; flex-direction: column; gap: 7px; margin-top: 1rem; }
+  .prog-step { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); }
+  .prog-step.done { color: var(--ok); }
+  .prog-step.active { color: var(--accent-2); font-weight: 500; }
+  .prog-step-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); flex-shrink: 0; }
+  .prog-step.done .prog-step-dot { background: var(--ok); }
+  .prog-step.active .prog-step-dot { background: var(--accent-2); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ── RESULTS ── */
+  #result-area { display: none; }
+  #result-area.active { display: block; animation: fadeUp 0.5s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  .verdict-banner {
+    border-radius: 18px; padding: 1.6rem; display: flex; align-items: center; gap: 18px;
+    margin-bottom: 1.5rem; border: 1px solid var(--border); background: var(--card); position: relative; overflow: hidden;
+  }
+  .verdict-banner::after { content:''; position:absolute; inset:0; pointer-events:none; opacity:0.6; }
+  .verdict-banner.high { box-shadow: 0 0 0 1px rgba(255,77,106,0.35), 0 18px 50px rgba(255,77,106,0.12); }
+  .verdict-banner.high::after { background: radial-gradient(500px 120px at 0% 0%, rgba(255,77,106,0.16), transparent); }
+  .verdict-banner.med { box-shadow: 0 0 0 1px rgba(255,176,32,0.32), 0 18px 50px rgba(255,176,32,0.1); }
+  .verdict-banner.med::after { background: radial-gradient(500px 120px at 0% 0%, rgba(255,176,32,0.14), transparent); }
+  .verdict-banner.low { box-shadow: 0 0 0 1px rgba(46,230,166,0.3), 0 18px 50px rgba(46,230,166,0.1); }
+  .verdict-banner.low::after { background: radial-gradient(500px 120px at 0% 0%, rgba(46,230,166,0.14), transparent); }
+  .verdict-icon { font-size: 38px; flex-shrink: 0; position: relative; z-index: 1; }
+  .verdict-main { position: relative; z-index: 1; }
+  .verdict-title { font-size: 21px; font-weight: 800; letter-spacing: -0.4px; }
+  .verdict-banner.high .verdict-title { color: var(--danger); }
+  .verdict-banner.med .verdict-title { color: var(--warn); }
+  .verdict-banner.low .verdict-title { color: var(--ok); }
+  .verdict-sub { font-size: 12.5px; color: var(--muted); margin-top: 5px; font-family: var(--mono); }
+  .verdict-score {
+    margin-left: auto; flex-shrink: 0; width: 86px; height: 86px; border-radius: 50%;
+    display: grid; place-items: center; position: relative; z-index: 1;
+  }
+  .verdict-score::before { content:''; position:absolute; inset:7px; border-radius:50%; background: var(--card); }
+  .score-num { font-size: 26px; font-weight: 800; line-height: 1; position: relative; }
+  .score-lbl { font-size: 9px; color: var(--muted); letter-spacing: 1.5px; position: relative; margin-top: 3px; }
+
+  /* ── STATS ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1rem; text-align: center;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .stat-card:hover { transform: translateY(-3px); border-color: var(--border-2); }
+  .stat-card .val { font-size: 28px; font-weight: 800; }
+  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat-card.red .val { color: var(--danger); }
+  .stat-card.amber .val { color: var(--warn); }
+  .stat-card.green .val { color: var(--ok); }
+  .stat-card.blue .val { color: var(--info); }
+
+  /* ── SECTIONS ── */
+  .section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 15px;
+    margin-bottom: 0.9rem; overflow: hidden; transition: border-color 0.15s;
+  }
+  .section:hover { border-color: var(--border-2); }
+  .section-head {
+    padding: 15px 18px; display: flex; align-items: center; gap: 11px;
+    cursor: pointer; user-select: none;
+  }
+  .section-head:hover { background: rgba(255,255,255,0.02); }
+  .sh-icon { font-size: 18px; }
+  .sh-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .sh-badge { font-size: 11px; padding: 3px 11px; border-radius: 20px; font-weight: 600; }
+  .sh-badge.danger { background: rgba(255,77,106,0.13); color: #ff8198; border: 1px solid rgba(255,77,106,0.3); }
+  .sh-badge.warn { background: rgba(255,176,32,0.13); color: #ffc861; border: 1px solid rgba(255,176,32,0.3); }
+  .sh-badge.info { background: rgba(56,189,248,0.13); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); }
+  .sh-badge.ok { background: rgba(46,230,166,0.13); color: #6ef0c4; border: 1px solid rgba(46,230,166,0.3); }
+  .section-toggle { font-size: 16px; color: var(--muted); transition: transform 0.2s; }
+  .section.collapsed .section-toggle { transform: rotate(-90deg); }
+  .section-body { padding: 4px 18px 16px; }
+  .section.collapsed .section-body { display: none; }
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+  /* ── FINDINGS ── */
+  .finding { display: flex; align-items: flex-start; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .finding:last-child { border: none; }
+  .finding-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .finding-dot.red { background: var(--danger); box-shadow: 0 0 8px rgba(255,77,106,0.6); }
+  .finding-dot.amber { background: var(--warn); box-shadow: 0 0 8px rgba(255,176,32,0.5); }
+  .finding-dot.blue { background: var(--info); box-shadow: 0 0 8px rgba(56,189,248,0.5); }
+  .finding-dot.green { background: var(--ok); box-shadow: 0 0 8px rgba(46,230,166,0.5); }
+  .finding-text { font-size: 13px; flex: 1; line-height: 1.45; word-break: break-word; }
+  .finding-sub { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+  .finding a { color: var(--accent-2); font-weight: 600; text-decoration: none; }
+  .finding a:hover { text-decoration: underline; }
+  .tag-danger { font-size: 9.5px; background: rgba(255,77,106,0.16); color: #ff8198; padding: 1px 7px; border-radius: 6px; margin-left: 7px; border: 1px solid rgba(255,77,106,0.3); font-weight: 600; letter-spacing: 0.3px; }
+
+  /* ── ENGINES ── */
+  .engines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .engine-chip { padding: 8px 11px; border-radius: 9px; font-size: 12px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); }
+  .engine-chip.detected { background: rgba(255,77,106,0.1); border-color: rgba(255,77,106,0.28); color: #ff8198; }
+  .engine-chip.clean { background: rgba(255,255,255,0.03); color: var(--muted); }
+
+  /* ── AI ── */
+  .ai-section {
+    background: linear-gradient(135deg, rgba(124,92,255,0.1), rgba(34,211,238,0.06));
+    border: 1px solid rgba(124,92,255,0.28); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.2rem;
+    position: relative; overflow: hidden;
+  }
+  .ai-section::before { content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px; border-radius:50%; background: radial-gradient(rgba(124,92,255,0.25), transparent 70%); }
+  .ai-header { display: flex; align-items: center; gap: 11px; margin-bottom: 1rem; position: relative; }
+  .ai-icon { font-size: 22px; }
+  .ai-header h3 { font-size: 15px; font-weight: 700; }
+  .ai-badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; margin-left: auto; font-weight: 600; }
+  .ai-text { font-size: 14px; line-height: 1.75; position: relative; }
+  .ai-loading { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .spin-sm { width: 14px; height: 14px; border: 2px solid rgba(124,92,255,0.25); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+  /* ── FILE INFO ── */
+  .file-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fi-row { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; background: rgba(255,255,255,0.03); border-radius: 9px; border: 1px solid var(--border); }
+  .fi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .fi-value { font-size: 12.5px; font-weight: 500; word-break: break-all; font-family: var(--mono); }
+
+  /* ── EXPORT ── */
+  .export-row { display: flex; gap: 10px; margin-top: 1.5rem; }
+  .export-btn {
+    flex: 1; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; text-decoration: none;
+  }
+  .export-btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border: none; box-shadow: 0 6px 20px rgba(124,92,255,0.35); }
+  .export-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(124,92,255,0.45); }
+  .export-btn.secondary { background: rgba(255,255,255,0.04); color: var(--txt); border: 1px solid var(--border-2); }
+  .export-btn.secondary:hover { background: rgba(255,255,255,0.08); }
+
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero h1 { font-size: 2rem; }
+    .file-info-grid { grid-template-columns: 1fr; }
+    .verdict-banner { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/>
+        <path d="M9 11.5l2 2 4-4"/>
+      </svg>
+    </div>
+    <div class="nav-logo-text">Total<span>Ware</span></div>
+  </a>
+  <span class="nav-tagline">Universal Malware Analysis</span>
+  <div class="nav-right">
+    <a class="nav-badge" href="/organizations" style="text-decoration:none;">👥 Teams</a>
+    <a class="nav-badge" href="/feed" style="text-decoration:none;">🌐 Feed</a>
+    <a class="nav-badge" href="/history" style="text-decoration:none;">🕘 History</a>
+    <a class="nav-badge" href="/account" style="text-decoration:none;">🔑 API</a>
+    <a class="nav-badge" href="/docs" style="text-decoration:none;">📖 Docs</a>
+    <span id="auth-area" style="display:flex;align-items:center;gap:10px;"></span>
+    <span class="nav-badge live">Live</span>
+    <span class="nav-badge">v2.0</span>
+  </div>
+</nav>
+<script>
+// Nav auth state (login optional)
+fetch('/api/me').then(r => r.json()).then(d => {
+  const a = document.getElementById('auth-area');
+  if (!a) return;
+  if (d.user) {
+    a.innerHTML = '<span class="nav-badge" style="color:var(--accent-2);">👤 ' + d.user.username + '</span>' +
+                  '<a class="nav-badge" href="/logout" style="text-decoration:none;">Logout</a>';
+  } else {
+    a.innerHTML = '<a class="nav-badge" href="/login" style="text-decoration:none;">Login</a>' +
+                  '<a class="nav-badge" href="/signup" style="text-decoration:none;color:var(--accent-2);">Sign up</a>';
+  }
+}).catch(() => {});
+</script>
+
+<!-- HERO + UPLOAD -->
+<div class="hero">
+  <div class="upload-container">
+    <h1>Total<span>Ware</span></h1>
+    <p>Upload any file — APK, EXE, PDF, ZIP, PCAP — get deep malware analysis instantly</p>
+
+    <form id="scan-form" enctype="multipart/form-data">
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" name="file" id="file-input" accept="*/*" onchange="onFileSelect(this)">
+        <div class="drop-icon">📁</div>
+        <h3>Drop file here or click to browse</h3>
+        <p>Max 650MB · All file types supported</p>
+        <div class="file-types">
+          <span class="ft-badge hot">APK</span>
+          <span class="ft-badge hot">EXE / DLL</span>
+          <span class="ft-badge hot">PDF</span>
+          <span class="ft-badge">ZIP / RAR</span>
+          <span class="ft-badge">PCAP</span>
+          <span class="ft-badge">PS1 / BAT</span>
+          <span class="ft-badge">DOCX</span>
+          <span class="ft-badge">ELF</span>
+          <span class="ft-badge">JS / PHP</span>
+        </div>
+      </div>
+
+      <div class="selected-file" id="selected-file">
+        <span>📄</span>
+        <span class="fname" id="selected-name">—</span>
+        <span id="selected-size" style="opacity:0.7;margin-left:auto;"></span>
+      </div>
+
+      <button class="scan-btn" type="button" id="scan-btn" onclick="startScan()" disabled>
+        🔍 Scan File
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- MAIN RESULTS -->
+<div class="main">
+
+  <!-- PROGRESS -->
+  <div class="progress-card" id="progress-card">
+    <div class="progress-head">
+      <div class="spin"></div>
+      <span id="progress-label">Analyzing file...</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="progress-steps" id="progress-steps"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="result-area">
+
+    <!-- VERDICT -->
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-icon" id="verdict-icon">⚠️</div>
+      <div class="verdict-main">
+        <div class="verdict-title" id="verdict-title">—</div>
+        <div class="verdict-sub" id="verdict-sub">—</div>
+      </div>
+      <div class="verdict-score" id="verdict-score">
+        <div class="score-num" id="score-num">—</div>
+        <div class="score-lbl">RISK</div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card red"><div class="val" id="stat-engines">—</div><div class="lbl">Engines Detected</div></div>
+      <div class="stat-card amber"><div class="val" id="stat-perms">—</div><div class="lbl">Dangerous Perms</div></div>
+      <div class="stat-card red"><div class="val" id="stat-iocs">—</div><div class="lbl">IOCs Found</div></div>
+      <div class="stat-card blue"><div class="val" id="stat-yara">—</div><div class="lbl">YARA Matches</div></div>
+    </div>
+
+    <!-- AI CONCLUSION -->
+    <div class="ai-section" id="ai-section">
+      <div class="ai-header">
+        <span class="ai-icon">🤖</span>
+        <h3>AI Analysis — TotalWare Intelligence</h3>
+        <span class="ai-badge">Groq · Llama 3.1</span>
+      </div>
+      <div id="ai-content">
+        <div class="ai-loading">
+          <div class="spin-sm"></div>
+          <span>Generating AI conclusion...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMUNITY VOTES -->
+    <div class="section" id="section-votes">
+      <div class="section-head" onclick="toggleSection('votes')">
+        <span class="sh-icon">🗳️</span>
+        <span class="sh-title">Community Verdict</span>
+        <span class="sh-badge info" id="votes-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <p style="opacity:0.72;margin:0 0 14px;font-size:13px;line-height:1.5;">
+          What does the community think about this file? Cast your vote based on the analysis.
+        </p>
+        <div id="votes-bar" style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:10px;">
+          <div id="votes-mal-fill" style="width:0%;background:var(--danger);transition:width .3s;"></div>
+          <div id="votes-safe-fill" style="width:0%;background:var(--ok);transition:width .3s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:16px;">
+          <span><span id="votes-mal-count" style="color:var(--danger);font-weight:700;">0</span> Malicious</span>
+          <span><span id="votes-total" style="font-weight:700;">0</span> total votes</span>
+          <span><span id="votes-safe-count" style="color:var(--ok);font-weight:700;">0</span> Safe</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button id="vote-mal-btn" onclick="castVote(1)" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,77,106,0.35);background:rgba(255,77,106,0.08);color:var(--danger);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;">👎 Malicious</button>
+          <button id="vote-safe-btn" onclick="castVote(-1)" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(46,230,166,0.35);background:rgba(46,230,166,0.08);color:var(--ok);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;">👍 Safe</button>
+        </div>
+        <div id="votes-hint" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- DYNAMIC SANDBOX (BEHAVIOR) -->
+    <div class="section" id="section-behavior">
+      <div class="section-head" onclick="toggleSection('behavior')">
+        <span class="sh-icon">🧪</span>
+        <span class="sh-title">Dynamic Sandbox — Behavior</span>
+        <span class="sh-badge info" id="behavior-badge">On-demand</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <p style="opacity:0.72;margin:0 0 12px;font-size:13px;line-height:1.5;">
+          Runs the file in a sandbox to reveal its <b>live network / C2 traffic + behaviour</b> — starts <b>automatically</b> after the static scan.
+          <br>APK → local Android emulator (Frida anti-detect) · other files → VirusTotal cloud sandbox.
+        </p>
+        <div id="behavior-result" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <!-- IP GEOLOCATION MAP -->
+    <div class="section" id="section-geomap" style="display:none;">
+      <div class="section-head" onclick="toggleSection('geomap')">
+        <span class="sh-icon">🗺️</span>
+        <span class="sh-title">IP Geolocation Map</span>
+        <span class="sh-badge info" id="geomap-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <div id="geomap" style="height:400px;border-radius:10px;overflow:hidden;background:#0b1120;"></div>
+        <div id="geomap-legend" style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12px;opacity:.85;">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff3b3b;margin-right:5px;"></span>Malicious</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffa500;margin-right:5px;"></span>Suspicious</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#33cc66;margin-right:5px;"></span>Clean</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;margin-right:5px;"></span>Unknown</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATIONSHIP GRAPH -->
+    <div class="section" id="section-relgraph" style="display:none;">
+      <div class="section-head" onclick="toggleSection('relgraph')">
+        <span class="sh-icon">🕸️</span>
+        <span class="sh-title">Relationship Graph</span>
+        <span class="sh-badge info" id="relgraph-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <div id="relgraph" style="height:440px;border-radius:10px;background:#0b1120;"></div>
+      </div>
+    </div>
+
+    <!-- DIFF ANALYSIS -->
+    <div class="section" id="section-diff" style="display:none;">
+      <div class="section-head" onclick="toggleSection('diff')">
+        <span class="sh-icon">📊</span>
+        <span class="sh-title">Diff Analysis (vs previous scan)</span>
+        <span class="sh-badge info" id="diff-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <button class="scan-btn" type="button" id="diff-btn" style="max-width:460px;margin:0;">📊 Compare</button>
+        <div id="diff-result" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <!-- FILE INFO -->
+    <div class="section" id="section-fileinfo">
+      <div class="section-head" onclick="toggleSection('fileinfo')">
+        <span class="sh-icon">📋</span>
+        <span class="sh-title">File Information</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="file-info-grid" id="file-info-grid"></div>
+      </div>
+    </div>
+
+    <!-- APP INFO (APK only) -->
+    <div class="section" id="section-appinfo" style="display:none;">
+      <div class="section-head" onclick="toggleSection('appinfo')">
+        <span class="sh-icon">📱</span>
+        <span class="sh-title">App Information</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="file-info-grid" id="app-info-grid"></div>
+      </div>
+    </div>
+
+    <!-- OFFICE MACROS (office files only) -->
+    <div class="section" id="section-office" style="display:none;">
+      <div class="section-head" onclick="toggleSection('office')">
+        <span class="sh-icon">📄</span>
+        <span class="sh-title">Office Macro Analysis</span>
+        <span class="sh-badge warn" id="office-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="office-body"></div>
+    </div>
+
+    <!-- PCAP / NETWORK CAPTURE (pcap files only) -->
+    <div class="section" id="section-pcap" style="display:none;">
+      <div class="section-head" onclick="toggleSection('pcap')">
+        <span class="sh-icon">🛰️</span>
+        <span class="sh-title">Network Capture (PCAP)</span>
+        <span class="sh-badge info" id="pcap-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="pcap-body"></div>
+    </div>
+
+    <!-- VIRUS TOTAL -->
+    <div class="section" id="section-vt">
+      <div class="section-head" onclick="toggleSection('vt')">
+        <span class="sh-icon">🔬</span>
+        <span class="sh-title">Malware Detection Engines</span>
+        <span class="sh-badge danger" id="vt-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="engines-grid" id="engines-grid"></div>
+      </div>
+    </div>
+
+    <!-- MALWAREBAZAAR -->
+    <div class="section" id="section-mb">
+      <div class="section-head" onclick="toggleSection('mb')">
+        <span class="sh-icon">🗄️</span>
+        <span class="sh-title">MalwareBazaar (Known Sample DB)</span>
+        <span class="sh-badge info" id="mb-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="mb-body"></div>
+    </div>
+
+    <!-- URLHAUS -->
+    <div class="section" id="section-urlhaus">
+      <div class="section-head" onclick="toggleSection('urlhaus')">
+        <span class="sh-icon">🔗</span>
+        <span class="sh-title">URLhaus (Malicious URL Feed)</span>
+        <span class="sh-badge info" id="urlhaus-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="urlhaus-body"></div>
+    </div>
+
+    <!-- NETWORK IOCs -->
+    <div class="section" id="section-ioc">
+      <div class="section-head" onclick="toggleSection('ioc')">
+        <span class="sh-icon">🌐</span>
+        <span class="sh-title">Network IOCs & C2 Servers</span>
+        <span class="sh-badge danger" id="ioc-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="ioc-body"></div>
+    </div>
+
+    <!-- DANGEROUS PERMISSIONS -->
+    <div class="section" id="section-perms">
+      <div class="section-head" onclick="toggleSection('perms')">
+        <span class="sh-icon">🔐</span>
+        <span class="sh-title">Dangerous Permissions</span>
+        <span class="sh-badge warn" id="perms-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="perms-body"></div>
+    </div>
+
+    <!-- ALL PERMISSIONS -->
+    <div class="section collapsed" id="section-allperms">
+      <div class="section-head" onclick="toggleSection('allperms')">
+        <span class="sh-icon">🗝️</span>
+        <span class="sh-title">All Requested Permissions</span>
+        <span class="sh-badge info" id="allperms-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="allperms-body"></div>
+    </div>
+
+    <!-- CERTIFICATE -->
+    <div class="section" id="section-cert">
+      <div class="section-head" onclick="toggleSection('cert')">
+        <span class="sh-icon">📜</span>
+        <span class="sh-title">Certificate Forensics</span>
+        <span class="sh-badge warn" id="cert-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="cert-body"></div>
+    </div>
+
+    <!-- REPACKAGING -->
+    <div class="section" id="section-repack">
+      <div class="section-head" onclick="toggleSection('repack')">
+        <span class="sh-icon">📦</span>
+        <span class="sh-title">Repackaging / Tampering</span>
+        <span class="sh-badge warn" id="repack-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="repack-body"></div>
+    </div>
+
+    <!-- SUSPICIOUS APIS -->
+    <div class="section" id="section-apis">
+      <div class="section-head" onclick="toggleSection('apis')">
+        <span class="sh-icon">⚙️</span>
+        <span class="sh-title">Suspicious API Calls (Behavior)</span>
+        <span class="sh-badge warn" id="apis-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="apis-body"></div>
+    </div>
+
+    <!-- IDENTITY MISMATCH -->
+    <div class="section" id="section-identity">
+      <div class="section-head" onclick="toggleSection('identity')">
+        <span class="sh-icon">🎭</span>
+        <span class="sh-title">App Identity Check</span>
+        <span class="sh-badge warn" id="identity-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="identity-body"></div>
+    </div>
+
+    <!-- MITRE ATT&CK -->
+    <div class="section" id="section-mitre">
+      <div class="section-head" onclick="toggleSection('mitre')">
+        <span class="sh-icon">🎯</span>
+        <span class="sh-title">MITRE ATT&CK Techniques</span>
+        <span class="sh-badge info" id="mitre-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="mitre-body"></div>
+    </div>
+
+    <!-- SECRETS -->
+    <div class="section" id="section-secrets">
+      <div class="section-head" onclick="toggleSection('secrets')">
+        <span class="sh-icon">🔑</span>
+        <span class="sh-title">Embedded Secrets & Credentials</span>
+        <span class="sh-badge warn" id="secrets-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="secrets-body"></div>
+    </div>
+
+    <!-- YARA -->
+    <div class="section" id="section-yara">
+      <div class="section-head" onclick="toggleSection('yara')">
+        <span class="sh-icon">🧬</span>
+        <span class="sh-title">YARA Rule Matches</span>
+        <span class="sh-badge info" id="yara-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="yara-body"></div>
+    </div>
+
+    <!-- STRINGS -->
+    <div class="section" id="section-strings">
+      <div class="section-head" onclick="toggleSection('strings')">
+        <span class="sh-icon">🔍</span>
+        <span class="sh-title">Suspicious Strings & Keywords</span>
+        <span class="sh-badge warn" id="strings-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="strings-body"></div>
+    </div>
+
+    <!-- ENTROPY -->
+    <div class="section" id="section-entropy">
+      <div class="section-head" onclick="toggleSection('entropy')">
+        <span class="sh-icon">📊</span>
+        <span class="sh-title">Entropy Analysis</span>
+        <span class="sh-badge info" id="entropy-badge">—</span>
+        <span class="section-toggle">▾</span>
+      </div>
+      <div class="section-body" id="entropy-body"></div>
+    </div>
+
+    <!-- EXPORT (shown after the dynamic scan completes) -->
+    <div class="export-row" id="export-row" style="display:none;">
+      <button class="export-btn primary" onclick="exportReport()">⬇️ Download HTML Report</button>
+      <button class="export-btn secondary" onclick="copyJSON()">📋 Copy JSON</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let scanData = null;
+
+function onFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('selected-name').textContent = file.name;
+  document.getElementById('selected-size').textContent = formatSize(file.size);
+  document.getElementById('selected-file').classList.add('show');
+  document.getElementById('scan-btn').disabled = false;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+}
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('file-input').files = dt.files;
+    onFileSelect(document.getElementById('file-input'));
+  }
+});
+
+const scanSteps = [
+  "Calculating file hashes...",
+  "Extracting strings & URLs...",
+  "Running YARA rules...",
+  "Checking VirusTotal...",
+  "Analyzing permissions & behavior...",
+  "Mapping MITRE ATT&CK...",
+  "Scanning for secrets...",
+  "Generating AI conclusion..."
+];
+
+function showProgress() {
+  const card = document.getElementById('progress-card');
+  card.classList.add('active');
+  document.getElementById('result-area').classList.remove('active');
+
+  const stepsDiv = document.getElementById('progress-steps');
+  stepsDiv.innerHTML = scanSteps.map((s, i) =>
+    `<div class="prog-step" id="pstep-${i}"><div class="prog-step-dot"></div>${s}</div>`
+  ).join('');
+
+  let i = 0;
+  const fill = document.getElementById('progress-fill');
+  const label = document.getElementById('progress-label');
+
+  const iv = setInterval(() => {
+    if (i > 0) document.getElementById(`pstep-${i-1}`)?.classList.replace('active','done');
+    if (i >= scanSteps.length) { clearInterval(iv); return; }
+    document.getElementById(`pstep-${i}`)?.classList.add('active');
+    label.textContent = scanSteps[i];
+    fill.style.width = ((i+1)/scanSteps.length * 85) + '%';
+    i++;
+  }, 600);
+  return iv;
+}
+
+async function startScan() {
+  const fileInput = document.getElementById('file-input');
+  if (!fileInput.files[0]) return;
+
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Scanning...';
+
+  const iv = showProgress();
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/scan', { method: 'POST', body: formData });
+    const data = await res.json();
+    clearInterval(iv);
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-label').textContent = '✅ Scan complete!';
+
+    setTimeout(() => {
+      document.getElementById('progress-card').classList.remove('active');
+      if (data && data.error) {
+        alert(data.error);   // e.g. "File too large" or an antivirus block
+        btn.disabled = false;
+        btn.textContent = '🔍 Scan File';
+        return;
+      }
+      renderResults(data);
+      btn.disabled = false;
+      btn.textContent = '🔍 Scan File';
+    }, 700);
+
+  } catch(e) {
+    clearInterval(iv);
+    document.getElementById('progress-label').textContent = '❌ Error: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '🔍 Scan File';
+  }
+}
+
+function renderResults(data, fromHistory) {
+  scanData = data;
+
+  // reset Dynamic Sandbox (Behavior) section for the new file
+  var _br = document.getElementById('behavior-result'); if (_br) _br.innerHTML = '';
+  var _bb = document.getElementById('behavior-badge'); if (_bb) _bb.textContent = 'Queued';
+  // new scan started — hide the download option (it returns once the dynamic scan completes)
+  var _er = document.getElementById('export-row'); if (_er) _er.style.display = 'none';
+
+  // IP Geolocation map
+  try { renderGeoMap(data.ip_geolocation); } catch (e) { console.warn('geomap', e); }
+
+  try { renderRelGraph(data.relationship_graph); } catch (e) {}
+
+  setupDiff(data);
+  prevScanData = data;
+
+  const risk = data.risk_assessment || {};
+  const score = risk.final_score ?? 0;
+  const verdict = (risk.verdict || '').toUpperCase();
+  const vt = data.virustotal || {};
+  const vtStats = vt.stats || {};
+  const vtDet = vtStats.malicious || 0;
+  const vtTotal = vtStats.total_engines || 75;
+  const apk = data.apk_analysis || {};
+  const perms = apk.permissions?.dangerous_permissions || [];
+  const iocs = [...(data.strings?.urls || []), ...(apk.network?.urls_found || [])];
+  const yara = data.yara_scan?.matches || [];
+
+  // Verdict — driven by the risk engine's own verdict, not just score
+  let cls, icon, title, ring;
+  if (verdict === 'MALICIOUS' || (!verdict && score >= 75)) {
+    cls = 'high'; icon = '🚨'; title = 'MALICIOUS — Dangerous File Detected'; ring = 'var(--danger)';
+  } else if (verdict === 'SUSPICIOUS' || (!verdict && score >= 50)) {
+    cls = 'med'; icon = '⚠️'; title = 'SUSPICIOUS — Caution Advised'; ring = 'var(--warn)';
+  } else if (verdict.includes('UNWANTED') || (!verdict && score >= 25)) {
+    cls = 'med'; icon = '⚠️'; title = 'POTENTIALLY UNWANTED — Exercise Caution'; ring = 'var(--warn)';
+  } else {
+    cls = 'low'; icon = '✅'; title = 'CLEAN — No Significant Threats'; ring = 'var(--ok)';
+  }
+
+  const banner = document.getElementById('verdict-banner');
+  banner.className = 'verdict-banner ' + cls;
+  document.getElementById('verdict-icon').textContent = icon;
+  document.getElementById('verdict-title').textContent = title;
+  document.getElementById('verdict-sub').textContent = `${data.filename} · ${formatSize(data.size_bytes)} · SHA256: ${(data.hashes?.sha256||'').substring(0,20)}...`;
+  document.getElementById('score-num').textContent = score;
+  document.getElementById('score-num').style.color = ring;
+  const vs = document.getElementById('verdict-score');
+  vs.style.background = `conic-gradient(${ring} ${score*3.6}deg, rgba(255,255,255,0.08) ${score*3.6}deg)`;
+
+  // Stats
+  document.getElementById('stat-engines').textContent = vtDet;
+  document.getElementById('stat-perms').textContent = perms.length;
+  document.getElementById('stat-iocs').textContent = iocs.length;
+  document.getElementById('stat-yara').textContent = yara.length;
+
+  // VT
+  document.getElementById('vt-badge').textContent = `${vtDet}/${vtTotal} detected`;
+  const engGrid = document.getElementById('engines-grid');
+  const detEngines = vt.malicious_engines || [];
+  if (detEngines.length) {
+    engGrid.innerHTML = detEngines.map(e =>
+      `<div class="engine-chip detected">✗ ${e.engine}: ${e.result}</div>`
+    ).join('');
+  } else if (vt.found === false) {
+    engGrid.innerHTML = '<p class="empty">Not previously scanned on VirusTotal</p>';
+  } else {
+    engGrid.innerHTML = '<p class="empty">No engine flagged this file (clean)</p>';
+  }
+
+  // MalwareBazaar
+  const mb = data.malwarebazaar || {};
+  if (mb.found) {
+    setBadge('mb-badge', 'KNOWN MALWARE', 'danger');
+    let mbHtml = `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">Family / Signature: <strong>${mb.signature || 'unknown'}</strong><div class="finding-sub">File type: ${mb.file_type || '—'} · First seen: ${mb.first_seen || '—'}</div></div></div>`;
+    if ((mb.tags || []).length) mbHtml += `<div class="finding"><div class="finding-dot amber"></div><div class="finding-text">Tags: ${mb.tags.join(', ')}</div></div>`;
+    if (mb.delivery_method) mbHtml += `<div class="finding"><div class="finding-dot amber"></div><div class="finding-text">Delivery method: ${mb.delivery_method}</div></div>`;
+    document.getElementById('mb-body').innerHTML = mbHtml;
+  } else {
+    setBadge('mb-badge', 'Not found', 'ok');
+    document.getElementById('mb-body').innerHTML = `<p class="empty">${mb.message || 'Not in MalwareBazaar database'} — (absence from the DB does not guarantee the file is clean)</p>`;
+  }
+
+  // URLhaus
+  const uh = data.urlhaus || {};
+  const uhHosts = uh.malicious_hosts || [];
+  if (uh.found_malicious) {
+    setBadge('urlhaus-badge', uhHosts.length + ' malicious', 'danger');
+    document.getElementById('urlhaus-body').innerHTML = uhHosts.map(hh => `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">${hh.host}<div class="finding-sub">${hh.url_count} malware URLs listed on URLhaus</div></div></div>`).join('');
+  } else {
+    setBadge('urlhaus-badge', (uh.hosts_checked || 0) + ' checked', 'ok');
+    document.getElementById('urlhaus-body').innerHTML = '<p class="empty">No hosts found in URLhaus malicious feed</p>';
+  }
+
+  // Certificate
+  const cert = apk.certificate || {};
+  const certDetails = cert.details || [];
+  const certFlags = cert.red_flags || [];
+  setBadge('cert-badge', certFlags.length ? certFlags.length + ' red flags' : 'OK', certFlags.length ? 'warn' : 'ok');
+  let certHtml = '';
+  certDetails.forEach(c => {
+    certHtml += `
+    <div class="finding">
+      <div class="finding-dot ${c.self_signed ? 'red' : 'green'}"></div>
+      <div class="finding-text">Signer: ${c.common_name} (${c.organization})
+        <div class="finding-sub">${c.self_signed ? 'SELF-SIGNED' : 'CA-signed'} · ${c.hash_algo} · valid ${c.validity_years} yrs</div>
+      </div>
+    </div>`;
+  });
+  certFlags.forEach(f => {
+    certHtml += `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">${f}</div></div>`;
+  });
+  document.getElementById('cert-body').innerHTML = certHtml || '<p class="empty">No certificate data</p>';
+
+  // Repackaging
+  const repack = apk.repackaging || {};
+  const repackFlags = repack.red_flags || [];
+  setBadge('repack-badge', repack.is_repackaged ? 'REPACKAGED' : 'Clean', repack.is_repackaged ? 'warn' : 'ok');
+  document.getElementById('repack-body').innerHTML = repackFlags.length
+    ? repackFlags.map(f => `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">${f}</div></div>`).join('')
+    : '<p class="empty">No repackaging signs detected</p>';
+
+  // Suspicious APIs
+  const apiList = (apk.suspicious_apis || {}).apis || [];
+  setBadge('apis-badge', apiList.length + ' behaviors', apiList.length ? 'warn' : 'ok');
+  document.getElementById('apis-body').innerHTML = apiList.length ? apiList.map(a => `
+    <div class="finding">
+      <div class="finding-dot red"></div>
+      <div class="finding-text">${a.behavior}<div class="finding-sub">${a.description} · API: ${a.api}()</div></div>
+    </div>`).join('') : '<p class="empty">No suspicious API calls detected</p>';
+
+  // Identity
+  const idm = apk.name_mismatch || {};
+  const idFlags = idm.red_flags || [];
+  setBadge('identity-badge', idm.mismatch ? 'MISMATCH' : 'OK', idm.mismatch ? 'warn' : 'ok');
+  document.getElementById('identity-body').innerHTML = idFlags.length ? idFlags.map(f => `
+    <div class="finding"><div class="finding-dot amber"></div><div class="finding-text">${f}</div></div>`).join('')
+    : '<p class="empty">App name matches package identity</p>';
+
+  // MITRE
+  const techs = (apk.mitre_attack || {}).techniques || [];
+  setBadge('mitre-badge', techs.length + ' techniques', 'info');
+  document.getElementById('mitre-body').innerHTML = techs.length ? techs.map(t => `
+    <div class="finding">
+      <div class="finding-dot red"></div>
+      <div class="finding-text">
+        <a href="https://attack.mitre.org/techniques/${t.id.replace('.','/')}/" target="_blank">${t.id}</a> — ${t.name}
+        <div class="finding-sub">${t.tactic} · Evidence: ${t.evidence}</div>
+      </div>
+    </div>`).join('') : '<p class="empty">No MITRE techniques mapped</p>';
+
+  // Secrets (real) + public client keys (info-only, e.g. Firebase AIza key)
+  const secretsList = (data.strings?.secrets || {}).secrets || [];
+  const publicKeys = (data.strings?.secrets || {}).public_keys || [];
+  setBadge('secrets-badge',
+    secretsList.length ? secretsList.length + ' found' : (publicKeys.length ? publicKeys.length + ' public key(s)' : '0 found'),
+    secretsList.length ? 'danger' : 'ok');
+  const secretsHtml = secretsList.map(s => `
+    <div class="finding">
+      <div class="finding-dot red"></div>
+      <div class="finding-text">${s.type}<div class="finding-sub">${s.match} · entropy: ${s.entropy}</div></div>
+    </div>`).join('');
+  const publicHtml = publicKeys.map(s => `
+    <div class="finding">
+      <div class="finding-dot green"></div>
+      <div class="finding-text">${s.type} <span style="opacity:.6">(public client key — not a secret)</span><div class="finding-sub">${s.match}</div></div>
+    </div>`).join('');
+  document.getElementById('secrets-body').innerHTML = (secretsHtml + publicHtml) || '<p class="empty">No embedded secrets found</p>';
+
+  // IOCs
+  const allUrls = [...new Set([...(data.strings?.urls||[]), ...(apk.network?.urls_found||[])])];
+  setBadge('ioc-badge', allUrls.length + ' found', allUrls.length ? 'danger' : 'ok');
+  document.getElementById('ioc-body').innerHTML = allUrls.length ? allUrls.map(u => `
+    <div class="finding">
+      <div class="finding-dot red"></div>
+      <div class="finding-text">${u}<div class="finding-sub">Extracted from file strings</div></div>
+    </div>`).join('') : '<p class="empty">No network IOCs found</p>';
+
+  // Dangerous permissions
+  setBadge('perms-badge', perms.length + ' dangerous', perms.length ? 'warn' : 'ok');
+  const usesVpn = apk.permissions?.uses_vpn;
+  const vpnWarn = usesVpn
+    ? `<div class="finding"><div class="finding-dot red"></div><div class="finding-text" style="color:var(--danger);font-weight:600;">⚠ Requests VPN permission (BIND_VPN_SERVICE)<div class="finding-sub" style="color:var(--muted);font-weight:400;">Can route / intercept ALL device traffic — high abuse potential</div></div></div>`
+    : '';
+  document.getElementById('perms-body').innerHTML = vpnWarn + (perms.length ? perms.map(p => `
+    <div class="finding">
+      <div class="finding-dot amber"></div>
+      <div class="finding-text">${p.replace('android.permission.','')}<div class="finding-sub">${p}</div></div>
+    </div>`).join('') : '<p class="empty">No dangerous permissions found</p>');
+
+  // All permissions (dangerous highlighted)
+  const allPerms = apk.permissions?.all_permissions || [];
+  const dangerSet = new Set(perms);
+  setBadge('allperms-badge', allPerms.length + ' total', 'info');
+  document.getElementById('allperms-body').innerHTML = allPerms.length ? allPerms.map(p => {
+    const danger = dangerSet.has(p);
+    return `<div class="finding">
+      <div class="finding-dot ${danger ? 'red' : 'green'}"></div>
+      <div class="finding-text">${p.replace('android.permission.','')}${danger ? '<span class="tag-danger">DANGEROUS</span>' : ''}<div class="finding-sub">${p}</div></div>
+    </div>`;
+  }).join('') : '<p class="empty">No permissions requested (or not an APK)</p>';
+
+  // YARA
+  setBadge('yara-badge', yara.length + ' matches', yara.length ? 'info' : 'ok');
+  document.getElementById('yara-body').innerHTML = yara.length ? yara.map(y => `
+    <div class="finding">
+      <div class="finding-dot blue"></div>
+      <div class="finding-text">${y.rule}<div class="finding-sub">[${y.severity}] ${y.description} — found in: ${y.found_in}</div></div>
+    </div>`).join('') : '<p class="empty">No YARA matches</p>';
+
+  // Strings
+  const kws = data.strings?.suspicious_keywords || [];
+  setBadge('strings-badge', kws.length + ' suspicious', kws.length ? 'warn' : 'ok');
+  document.getElementById('strings-body').innerHTML = kws.length ? kws.map(k => `
+    <div class="finding"><div class="finding-dot amber"></div><div class="finding-text">${k}</div></div>`).join('')
+    : '<p class="empty">No suspicious keywords found</p>';
+
+  // Entropy
+  const ent = data.entropy || {};
+  document.getElementById('entropy-badge').textContent = ent.score ?? '—';
+  document.getElementById('entropy-body').innerHTML = `
+    <div class="finding">
+      <div class="finding-dot ${(ent.score||0) > 7 ? 'red' : 'green'}"></div>
+      <div class="finding-text">Entropy Score: <strong>${ent.score}</strong><div class="finding-sub">${ent.verdict || '—'}</div></div>
+    </div>`;
+
+  // File Info
+  const h = data.hashes || {};
+  const fuzzy = data.fuzzy_hash || {};
+  const bm = fuzzy.best_match;
+  const matchRow = bm
+    ? `<div class="fi-row" style="grid-column:1/-1;${fuzzy.is_variant ? 'border-color:rgba(255,77,106,0.45);background:rgba(255,77,106,0.08);' : ''}"><div class="fi-label">Fuzzy Match</div><div class="fi-value" style="${fuzzy.is_variant ? 'color:var(--danger);font-weight:700;' : ''}">${bm.name} — ${bm.similarity}% similar${fuzzy.is_variant ? '  ⚠ known-malware variant' : ''}</div></div>`
+    : '';
+  document.getElementById('file-info-grid').innerHTML = `
+    <div class="fi-row"><div class="fi-label">Filename</div><div class="fi-value">${data.filename}</div></div>
+    <div class="fi-row"><div class="fi-label">Size</div><div class="fi-value">${formatSize(data.size_bytes)}</div></div>
+    <div class="fi-row"><div class="fi-label">MD5</div><div class="fi-value">${h.md5 || '—'}</div></div>
+    <div class="fi-row"><div class="fi-label">SHA1</div><div class="fi-value">${h.sha1 || '—'}</div></div>
+    <div class="fi-row"><div class="fi-label">SHA256</div><div class="fi-value">${h.sha256 || '—'}</div></div>
+    <div class="fi-row"><div class="fi-label">Entropy</div><div class="fi-value">${ent.score ?? '—'}</div></div>
+    <div class="fi-row" style="grid-column:1/-1;"><div class="fi-label">SSDEEP (fuzzy hash)</div><div class="fi-value">${fuzzy.fuzzy_hash || '—'}</div></div>
+    ${matchRow}
+  `;
+
+  // App Info (APK only)
+  const appInfo = apk.app_info;
+  const appInfoSection = document.getElementById('section-appinfo');
+  if (appInfo && appInfo.package_name) {
+    appInfoSection.style.display = '';
+    document.getElementById('app-info-grid').innerHTML = `
+      <div class="fi-row"><div class="fi-label">App Name</div><div class="fi-value">${appInfo.app_name || '—'}</div></div>
+      <div class="fi-row"><div class="fi-label">Package Name</div><div class="fi-value">${appInfo.package_name || '—'}</div></div>
+      <div class="fi-row"><div class="fi-label">Version Name</div><div class="fi-value">${appInfo.version_name || '—'}</div></div>
+      <div class="fi-row"><div class="fi-label">Version Code</div><div class="fi-value">${appInfo.version_code || '—'}</div></div>
+    `;
+  } else {
+    appInfoSection.style.display = 'none';
+  }
+
+  // Office macro analysis (office files only)
+  const office = data.office_analysis || {};
+  const officeSection = document.getElementById('section-office');
+  if (office && Object.keys(office).length && office.error === undefined) {
+    officeSection.style.display = '';
+    if (office.has_macros) {
+      const oFlags = office.red_flags || [];
+      setBadge('office-badge', oFlags.length ? 'MACROS · ' + oFlags.length + ' flags' : 'MACROS', 'danger');
+      let html = '';
+      (office.auto_exec || []).forEach(m => html += `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">${m.keyword} <span class="tag-danger">AUTO-EXEC</span><div class="finding-sub">${m.description}</div></div></div>`);
+      (office.suspicious || []).forEach(m => html += `<div class="finding"><div class="finding-dot amber"></div><div class="finding-text">${m.keyword}<div class="finding-sub">${m.description}</div></div></div>`);
+      (office.iocs || []).forEach(m => html += `<div class="finding"><div class="finding-dot blue"></div><div class="finding-text">${m.keyword}<div class="finding-sub">${m.description}</div></div></div>`);
+      document.getElementById('office-body').innerHTML = html || '<p class="empty">Macros present, no suspicious indicators</p>';
+    } else {
+      setBadge('office-badge', 'No macros', 'ok');
+      document.getElementById('office-body').innerHTML = '<p class="empty">No VBA macros found</p>';
+    }
+  } else {
+    officeSection.style.display = 'none';
+  }
+
+  // PCAP / network capture (pcap files only)
+  const pcap = data.pcap_analysis || {};
+  const pcapSection = document.getElementById('section-pcap');
+  if (pcap && Object.keys(pcap).length && pcap.error === undefined) {
+    pcapSection.style.display = '';
+    const sp = pcap.suspicious_ports || [];
+    setBadge('pcap-badge', (pcap.total_packets || 0) + ' packets', sp.length ? 'danger' : 'info');
+    let html = '';
+    if (sp.length) html += `<div class="finding"><div class="finding-dot red"></div><div class="finding-text">Suspicious ports: ${sp.join(', ')}<div class="finding-sub">Common malware / C2 ports</div></div></div>`;
+    (pcap.dns_queries || []).forEach(d => html += `<div class="finding"><div class="finding-dot amber"></div><div class="finding-text">DNS query: ${d}</div></div>`);
+    (pcap.http_hosts || []).forEach(hh => html += `<div class="finding"><div class="finding-dot amber"></div><div class="finding-text">HTTP host: ${hh}</div></div>`);
+    (pcap.destination_ips || []).forEach(ip => html += `<div class="finding"><div class="finding-dot blue"></div><div class="finding-text">Contacted IP: ${ip}</div></div>`);
+    document.getElementById('pcap-body').innerHTML = html || '<p class="empty">No notable network activity</p>';
+  } else {
+    pcapSection.style.display = 'none';
+  }
+
+  document.getElementById('result-area').classList.add('active');
+
+  // Community votes for this file
+  try { loadVotes(); } catch (e) {}
+
+  if (fromHistory) {
+    // loaded from history — don't re-detonate, just show the stored result
+    if (data.ai_conclusion) {
+      document.getElementById('ai-content').innerHTML = '<div class="ai-text">' + data.ai_conclusion + '</div>';
+    } else {
+      fetchAI(data);
+    }
+    if (data.dynamic_analysis) {
+      try { renderBehavior(data.dynamic_analysis); } catch(e) {}
+    } else {
+      var _bb = document.getElementById('behavior-badge'); if (_bb) _bb.textContent = 'Not run';
+      document.getElementById('behavior-result').innerHTML = '<div style="opacity:.7;font-size:13px;">Dynamic sandbox was not run for this saved scan.</div>';
+    }
+    var _er = document.getElementById('export-row'); if (_er) _er.style.display = '';   // download available immediately
+  } else {
+    fetchAI(data);
+    runBehavior();   // new scan — auto-run the dynamic sandbox in the background; the download button appears when it completes
+  }
+}
+
+function setBadge(id, text, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'sh-badge ' + (type || 'info');
+}
+
+let prevScanData = null;
+function setupDiff(cur) {
+  const sec = document.getElementById('section-diff');
+  const out = document.getElementById('diff-result');
+  const btn = document.getElementById('diff-btn');
+  out.innerHTML = '';
+  if (!prevScanData || (prevScanData.hashes && cur.hashes && prevScanData.hashes.sha256 === cur.hashes.sha256)) {
+    sec.style.display = 'none'; return;
+  }
+  const prev = prevScanData;
+  sec.style.display = 'block';
+  document.getElementById('diff-badge').textContent = 'vs ' + (prev.filename || 'previous');
+  btn.textContent = '📊 Compare: ' + (prev.filename || 'previous') + '  →  ' + (cur.filename || 'current');
+  btn.onclick = async function() {
+    out.innerHTML = '<div class="ai-loading"><div class="spin-sm"></div><span>Diffing...</span></div>';
+    try {
+      const res = await fetch('/diff', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ old: prev, new: cur }) });
+      renderDiff(await res.json());
+    } catch (e) { out.innerHTML = '<div style="color:#ff6b6b;">' + e.message + '</div>'; }
+  };
+}
+
+function _diffRows(title, added, removed) {
+  if (!added.length && !removed.length) return '';
+  let h = '<div style="margin-top:12px;"><div style="font-size:12px;text-transform:uppercase;opacity:.6;margin-bottom:6px;">' + title + '</div>';
+  added.forEach(function(x){ h += '<div style="font-size:13px;padding:4px 10px;color:#5fd35f;">+ ' + x + '</div>'; });
+  removed.forEach(function(x){ h += '<div style="font-size:13px;padding:4px 10px;color:#ff7676;">− ' + x + '</div>'; });
+  return h + '</div>';
+}
+
+function renderDiff(d) {
+  const out = document.getElementById('diff-result');
+  if (d.error) { out.innerHTML = '<div style="color:#ff6b6b;">' + d.error + '</div>'; return; }
+  const sc = d.score_change || 0;
+  let html = '<div style="margin-bottom:10px;font-size:13px;"><b>' + (d.files.old||'') + '</b> → <b>' + (d.files.new||'') +
+    '</b> · Risk change: <span style="color:' + (sc>0?'#ff7676':sc<0?'#5fd35f':'#9aa4b2') + '">' + (sc>0?'+':'') + sc + '</span></div>';
+  html += _diffRows('🔐 Permissions', d.perms.added, d.perms.removed);
+  html += _diffRows('🌐 IPs', d.ips.added, d.ips.removed);
+  html += _diffRows('🔗 URLs', d.urls.added, d.urls.removed);
+  html += _diffRows('⚙️ Suspicious APIs', d.apis.added, d.apis.removed);
+  html += _diffRows('🎯 YARA', d.yara.added, d.yara.removed);
+  if (html.indexOf('+ ') === -1 && html.indexOf('− ') === -1) html += '<div style="opacity:.7;font-size:13px;">No differences between the two scans.</div>';
+  out.innerHTML = html;
+}
+
+let _relNet = null;
+function renderRelGraph(g) {
+  const sec = document.getElementById('section-relgraph');
+  const nodes = (g && g.nodes) || [];
+  if (nodes.length <= 1) { if (sec) sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  document.getElementById('relgraph-badge').textContent = nodes.length + ' nodes';
+
+  const colors = { file:'#7c5cff', ip:'#33cc66', ip_sus:'#ffa500', ip_bad:'#ff3b3b',
+                   domain:'#4d9fff', behavior:'#ff8c00', sample:'#c97bff', family:'#ff5b9c' };
+  const visNodes = nodes.map(function(n){
+    return { id:n.id, label:n.label, title:n.title||n.label, color:colors[n.group]||'#888',
+             shape:n.group==='file'?'star':'dot', size:n.group==='file'?28:16, font:{color:'#e8edf6'} };
+  });
+  const visEdges = ((g && g.edges) || []).map(function(e){
+    return { from:e.from, to:e.to, label:e.label, arrows:'to',
+             color:{color:'rgba(255,255,255,0.25)'}, font:{color:'#9aa4b2', size:10} };
+  });
+  if (_relNet) { _relNet.destroy(); _relNet = null; }
+  _relNet = new vis.Network(
+    document.getElementById('relgraph'),
+    { nodes: new vis.DataSet(visNodes), edges: new vis.DataSet(visEdges) },
+    { physics:{ stabilization:true, barnesHut:{ gravitationalConstant:-8000, springLength:120 } },
+      interaction:{ hover:true, tooltipDelay:100 } }
+  );
+}
+
+
+let _geoMap = null;
+function renderGeoMap(geo) {
+  const sec = document.getElementById('section-geomap');
+  const locs = (geo && geo.locations) || [];
+  if (!locs.length) { if (sec) sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  document.getElementById('geomap-badge').textContent = locs.length + ' IP' + (locs.length > 1 ? 's' : '');
+
+  if (_geoMap) { _geoMap.remove(); _geoMap = null; }
+  _geoMap = L.map('geomap', { worldCopyJump: true, scrollWheelZoom: false }).setView([20, 10], 2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18, attribution: '© OpenStreetMap, © CARTO'
+  }).addTo(_geoMap);
+
+  const colorFor = function(v){
+    return v === 'MALICIOUS' ? '#ff3b3b' : v === 'SUSPICIOUS' ? '#ffa500' : v === 'CLEAN' ? '#33cc66' : '#888';
+  };
+  const pts = [];
+  locs.forEach(function(l){
+    if (l.lat == null || l.lon == null) return;
+    const c = colorFor(l.verdict);
+    pts.push([l.lat, l.lon]);
+    L.circleMarker([l.lat, l.lon], { radius: 8, color: c, fillColor: c, fillOpacity: 0.75, weight: 2 })
+      .addTo(_geoMap)
+      .bindPopup('<b>' + l.ip + '</b><br>' + (l.city ? l.city + ', ' : '') + (l.country || '') + '<br>' + (l.isp || '') + '<br><b>' + (l.verdict || 'UNKNOWN') + '</b>');
+  });
+  if (pts.length) { try { _geoMap.fitBounds(pts, { padding: [40, 40], maxZoom: 5 }); } catch(e){} }
+  setTimeout(function(){ if (_geoMap) _geoMap.invalidateSize(); }, 200);
+}
+
+async function runBehavior() {
+  if (!scanData || !scanData.filename) return;
+  const out = document.getElementById('behavior-result');
+  const badge = document.getElementById('behavior-badge');
+  badge.textContent = 'Running';
+  out.innerHTML = '<div class="ai-loading"><div class="spin-sm"></div><span>Detonating in sandbox... (1-2 min for APKs)</span></div>';
+  try {
+    const res = await fetch('/run_dynamic', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: scanData.filename,
+        stored_name: scanData.stored_name,
+        sha256: scanData.hashes && scanData.hashes.sha256,
+        package: scanData.apk_analysis && scanData.apk_analysis.app_info && scanData.apk_analysis.app_info.package_name
+      })
+    });
+    const dynResult = await res.json();
+    scanData.dynamic_analysis = dynResult;   // save for the report / export
+    renderBehavior(dynResult);
+  } catch (e) {
+    out.innerHTML = '<div style="color:#ff6b6b;">❌ Error: ' + e.message + '</div>';
+    badge.textContent = 'Error';
+  } finally {
+    // dynamic complete (result or not) → downloading the report is now allowed
+    var _er = document.getElementById('export-row'); if (_er) _er.style.display = '';
+  }
+}
+
+function _behaviorRows(title, items, color) {
+  if (!items || !items.length) return '';
+  let h = '<div style="margin-top:12px;"><div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;opacity:.6;margin-bottom:6px;">' + title + '</div>';
+  items.forEach(function(it){
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:7px;margin-bottom:4px;font-size:13px;"><span style="width:7px;height:7px;border-radius:50%;background:' + color + ';flex-shrink:0;"></span><span style="word-break:break-all;">' + it + '</span></div>';
+  });
+  return h + '</div>';
+}
+
+function renderBehavior(d) {
+  const out = document.getElementById('behavior-result');
+  const badge = document.getElementById('behavior-badge');
+  if (d.error) { out.innerHTML = '<div style="color:#ff6b6b;">❌ ' + d.error + '</div>'; badge.textContent = 'Error'; return; }
+
+  const engine = d.engine || 'sandbox';
+  let engineLabel = engine === 'local-android-emulator' ? '📱 Local Android Emulator' : '☁️ VirusTotal Cloud Sandbox';
+  let ips = [], hosts = [], urls = [], mitre = [], drops = [], verdict = d.verdict || '';
+
+  if (engine === 'vt-cloud-sandbox') {
+    const dyn = d.dynamic || {};
+    if (!dyn.available) {
+      out.innerHTML = '<div style="padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;"><b>' + engineLabel + '</b><br><span style="opacity:.75;">' + (dyn.message || dyn.error || 'No sandbox behaviour recorded') + '</span></div>';
+      badge.textContent = 'No data'; return;
+    }
+    ips = (d.iocs && d.iocs.candidate_c2_ips) || [];
+    hosts = (d.iocs && d.iocs.candidate_hosts) || [];
+    urls = (d.iocs && d.iocs.candidate_urls) || [];
+    mitre = (dyn.mitre || []).map(function(m){ return (m.id || '') + ' — ' + (m.signature_description || ''); });
+    drops = dyn.files_dropped || [];
+  } else {
+    ips = d.merged_candidate_c2_ips || (d.iocs && d.iocs.candidate_c2_ips) || [];
+    hosts = d.merged_candidate_hosts || (d.iocs && d.iocs.candidate_hosts) || [];
+    urls = (d.frida_url_lines || []).map(function(l){ return l.replace('[URL] ', ''); });
+    drops = (d.frida_drop_lines || []);
+    if (d.vt_behavior && d.vt_behavior.available) {
+      mitre = (d.vt_behavior.mitre || []).map(function(m){ return (m.id || '') + ' — ' + (m.signature_description || ''); });
+      engineLabel = '📱 Local Android + ☁️ VT (merged)';
+    }
+  }
+
+  const c2count = ips.length;
+  badge.textContent = c2count ? (c2count + ' C2') : 'Done';
+
+  let html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;"><span style="font-weight:600;">' + engineLabel + '</span><span style="padding:3px 10px;border-radius:20px;font-size:12px;background:' + (c2count ? 'rgba(224,32,32,0.15);color:#ff7676' : 'rgba(26,138,26,0.15);color:#5fd35f') + ';">' + (verdict || '—') + '</span></div>';
+
+  html += _behaviorRows('🎯 Candidate C2 IPs', ips, '#ff4d4d');
+  html += _behaviorRows('🌐 Candidate Hosts/Domains', hosts, '#ffa500');
+  html += _behaviorRows('🔗 URLs', urls.slice(0, 15), '#4d9fff');
+  html += _behaviorRows('📦 Dropped/Loaded', drops.slice(0, 10), '#c97bff');
+  html += _behaviorRows('🧬 MITRE ATT&CK (sandbox)', mitre.slice(0, 15), '#888');
+
+  if (d.threat_intel && d.threat_intel.results) {
+    const mal = d.threat_intel.results.filter(function(r){ return r.overall_verdict === 'MALICIOUS'; }).map(function(r){ return r.ip; });
+    if (mal.length) html += '<div style="margin-top:12px;padding:10px 12px;background:rgba(224,32,32,0.12);border:1px solid rgba(224,32,32,0.3);border-radius:8px;color:#ff8080;font-size:13px;">⚠️ Threat-intel confirmed MALICIOUS: ' + mal.join(', ') + '</div>';
+  }
+  if (!ips.length && !hosts.length && !urls.length) {
+    html += '<div style="opacity:.7;font-size:13px;margin-top:10px;">No clear C2 / network IOCs found (file dormant, C2 dead, or benign).</div>';
+  }
+  out.innerHTML = html;
+
+  // show the C2 IPs from dynamic analysis on the map
+  try { renderGeoMap(d.ip_geolocation); } catch (e) {}
+}
+
+async function fetchAI(data) {
+  try {
+    const res = await fetch('/ai_conclusion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const ai = await res.json();
+    if (scanData) scanData.ai_conclusion = ai.conclusion || '';   // save for the report
+    document.getElementById('ai-content').innerHTML =
+      `<div class="ai-text">${ai.conclusion || 'No conclusion available.'}</div>`;
+  } catch(e) {
+    document.getElementById('ai-content').innerHTML =
+      `<div class="ai-text" style="color:var(--muted);">AI conclusion unavailable — check GROQ_API_KEY in .env</div>`;
+  }
+}
+
+function toggleSection(id) {
+  document.getElementById('section-' + id).classList.toggle('collapsed');
+}
+
+function copyJSON() {
+  if (!scanData) return;
+  navigator.clipboard.writeText(JSON.stringify(scanData, null, 2));
+  alert('JSON copied!');
+}
+
+function exportReport() {
+  if (!scanData) return;
+  fetch('/export_report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(scanData)
+  })
+  .then(r => r.blob())
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'TotalWare_Report_' + (scanData.filename || 'report') + '.html';
+    a.click();
+  });
+}
+
+// ── Community voting ──
+let _voteAuthed = false;
+fetch('/api/me').then(r => r.json()).then(d => { _voteAuthed = !!d.user; }).catch(() => {});
+
+function renderVotes(v) {
+  const mal = v.malicious || 0, safe = v.safe || 0, total = v.total || 0;
+  document.getElementById('votes-mal-count').textContent = mal;
+  document.getElementById('votes-safe-count').textContent = safe;
+  document.getElementById('votes-total').textContent = total;
+  const malPct = total ? (mal / total * 100) : 0;
+  const safePct = total ? (safe / total * 100) : 0;
+  document.getElementById('votes-mal-fill').style.width = malPct + '%';
+  document.getElementById('votes-safe-fill').style.width = safePct + '%';
+  setBadge('votes-badge', total + (total === 1 ? ' vote' : ' votes'), mal > safe ? 'danger' : 'ok');
+
+  const malBtn = document.getElementById('vote-mal-btn');
+  const safeBtn = document.getElementById('vote-safe-btn');
+  malBtn.style.outline = v.my_vote === 1 ? '2px solid var(--danger)' : 'none';
+  safeBtn.style.outline = v.my_vote === -1 ? '2px solid var(--ok)' : 'none';
+
+  const hint = document.getElementById('votes-hint');
+  if (!_voteAuthed) {
+    hint.innerHTML = '<a href="/login" style="color:var(--accent-2);text-decoration:none;">Log in</a> to cast your vote.';
+    malBtn.disabled = true; safeBtn.disabled = true;
+    malBtn.style.opacity = safeBtn.style.opacity = '0.5';
+    malBtn.style.cursor = safeBtn.style.cursor = 'not-allowed';
+  } else {
+    hint.textContent = v.my_vote ? 'You voted — click again to change.' : '';
+    malBtn.disabled = false; safeBtn.disabled = false;
+    malBtn.style.opacity = safeBtn.style.opacity = '1';
+    malBtn.style.cursor = safeBtn.style.cursor = 'pointer';
+  }
+}
+
+async function loadVotes() {
+  const sha = scanData && scanData.hashes && scanData.hashes.sha256;
+  if (!sha) return;
+  const res = await fetch('/api/votes/' + sha);
+  renderVotes(await res.json());
+}
+
+async function castVote(vote) {
+  const sha = scanData && scanData.hashes && scanData.hashes.sha256;
+  if (!sha) return;
+  const res = await fetch('/api/vote', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sha256: sha, vote })
+  });
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  renderVotes(await res.json());
+}
+
+// ── Load a scan opened from history (/?scan=<id>) ──
+async function loadStoredScan(id) {
+  try {
+    const res = await fetch('/api/scan/' + id);
+    if (!res.ok) return;
+    const data = await res.json();
+    const result = data.result || {};
+    document.getElementById('result-area').classList.add('active');
+    renderResults(result, true);   // fromHistory = true
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) { console.warn('loadStoredScan', e); }
+}
+
+(function initFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const sid = params.get('scan');
+  if (sid) loadStoredScan(sid);
+})();
+</script>
+</body>
+</html>

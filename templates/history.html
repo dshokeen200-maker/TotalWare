@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan History — TotalWare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0:#070b16; --bg-1:#0b1120; --card:#111a2e; --card-2:#0e1626;
+    --border:rgba(255,255,255,0.08); --border-2:rgba(255,255,255,0.14);
+    --txt:#e9eef9; --muted:#8794ad; --accent:#7c5cff; --accent-2:#22d3ee;
+    --danger:#ff4d6a; --warn:#ffb020; --ok:#2ee6a6; --info:#38bdf8;
+    --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+    background:var(--bg-0); color:var(--txt); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; z-index:-2;
+    background:
+      radial-gradient(900px 500px at 15% -5%, rgba(124,92,255,0.18), transparent 60%),
+      radial-gradient(800px 500px at 95% 0%, rgba(34,211,238,0.14), transparent 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  }
+  .navbar {
+    backdrop-filter:blur(14px); background:rgba(10,15,28,0.72);
+    border-bottom:1px solid var(--border); padding:0 1.5rem; height:58px;
+    display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100;
+  }
+  .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .nav-logo-icon {
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(124,92,255,0.45);
+  }
+  .nav-logo-text { font-size:19px; font-weight:800; color:var(--txt); letter-spacing:-0.5px; }
+  .nav-logo-text span { background:linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .nav-tagline { font-size:12px; color:var(--muted); margin-left:4px; }
+  .nav-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .nav-badge {
+    font-size:11px; padding:4px 11px; border-radius:20px;
+    background:rgba(255,255,255,0.05); color:var(--muted);
+    border:1px solid var(--border); text-decoration:none;
+  }
+  .nav-badge.active { color:var(--accent-2); border-color:rgba(34,211,238,0.4); }
+
+  .wrap { max-width:1080px; margin:0 auto; padding:2.5rem 1.5rem 4rem; }
+  h1 { font-size:1.9rem; font-weight:800; letter-spacing:-1px; margin-bottom:0.4rem; }
+  h1 span { background:linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:2rem; }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:1.8rem; }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.2rem 1.4rem; }
+  .stat .v { font-size:2rem; font-weight:800; line-height:1; }
+  .stat .l { font-size:12px; color:var(--muted); margin-top:6px; text-transform:uppercase; letter-spacing:0.5px; }
+  .stat.total .v { color:var(--info); }
+  .stat.mal .v { color:var(--danger); }
+  .stat.clean .v { color:var(--ok); }
+
+  .controls { display:flex; gap:10px; margin-bottom:1.2rem; flex-wrap:wrap; }
+  .controls input {
+    flex:1; min-width:220px; padding:11px 15px; border-radius:11px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--border-2);
+    color:var(--txt); font-size:14px; font-family:inherit;
+  }
+  .controls input:focus { outline:none; border-color:var(--accent); }
+  .controls select {
+    padding:11px 15px; border-radius:11px; background:var(--card);
+    border:1px solid var(--border-2); color:var(--txt); font-size:14px; font-family:inherit; cursor:pointer;
+  }
+
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .scan-card {
+    background:var(--card); border:1px solid var(--border); border-radius:13px;
+    padding:14px 18px; display:flex; align-items:center; gap:16px;
+    transition:all 0.15s; cursor:pointer;
+  }
+  .scan-card:hover { border-color:var(--border-2); background:var(--card-2); transform:translateY(-1px); }
+  .sc-score {
+    width:52px; height:52px; border-radius:50%; flex-shrink:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:800; border:2.5px solid;
+  }
+  .sc-score .n { font-size:17px; line-height:1; }
+  .sc-score .l { font-size:8px; opacity:0.7; }
+  .sc-main { flex:1; min-width:0; }
+  .sc-name { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sc-meta { font-size:12px; color:var(--muted); margin-top:3px; font-family:var(--mono); }
+  .sc-verdict { font-size:11px; font-weight:700; padding:4px 11px; border-radius:20px; flex-shrink:0; }
+  .sc-time { font-size:12px; color:var(--muted); flex-shrink:0; min-width:130px; text-align:right; }
+  .sc-del {
+    background:none; border:1px solid var(--border-2); color:var(--muted);
+    border-radius:9px; width:34px; height:34px; cursor:pointer; flex-shrink:0;
+    font-size:15px; transition:all 0.15s;
+  }
+  .sc-del:hover { color:var(--danger); border-color:var(--danger); background:rgba(255,77,106,0.08); }
+
+  .v-mal { background:rgba(255,77,106,0.15); color:var(--danger); }
+  .v-susp { background:rgba(255,176,32,0.15); color:var(--warn); }
+  .v-puw { background:rgba(255,214,0,0.13); color:#e0c000; }
+  .v-clean { background:rgba(46,230,166,0.15); color:var(--ok); }
+
+  .empty { text-align:center; padding:4rem 1rem; color:var(--muted); }
+  .empty-icon { font-size:2.6rem; margin-bottom:0.8rem; opacity:0.6; }
+  .empty a { color:var(--accent-2); text-decoration:none; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/>
+        <path d="M9 11.5l2 2 4-4"/>
+      </svg>
+    </div>
+    <div class="nav-logo-text">Total<span>Ware</span></div>
+  </a>
+  <span class="nav-tagline">Universal Malware Analysis</span>
+  <div class="nav-right">
+    <a class="nav-badge active" href="/history">🕘 History</a>
+    <a class="nav-badge" href="/account">🔑 API Keys</a>
+    <a class="nav-badge" href="/">🔍 New Scan</a>
+    <span id="auth-area" style="display:flex;align-items:center;gap:10px;"></span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <h1>Scan <span>History</span></h1>
+  <p class="sub">All of your scans so far — click a card to open it.</p>
+
+  <div class="stats">
+    <div class="stat total"><div class="v" id="st-total">—</div><div class="l">Total Scans</div></div>
+    <div class="stat mal"><div class="v" id="st-mal">—</div><div class="l">Malicious / Suspicious</div></div>
+    <div class="stat clean"><div class="v" id="st-clean">—</div><div class="l">Clean</div></div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="🔍 Search by filename or SHA256...">
+    <select id="verdict">
+      <option value="ALL">All verdicts</option>
+      <option value="MALICIOUS">Malicious</option>
+      <option value="SUSPICIOUS">Suspicious</option>
+      <option value="POTENTIALLY UNWANTED">Potentially Unwanted</option>
+      <option value="CLEAN">Clean</option>
+    </select>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+let _timer = null;
+
+function verdictClass(v) {
+  v = (v || '').toUpperCase();
+  if (v === 'MALICIOUS') return 'v-mal';
+  if (v === 'SUSPICIOUS') return 'v-susp';
+  if (v.includes('UNWANTED')) return 'v-puw';
+  return 'v-clean';
+}
+function scoreColor(score, v) {
+  v = (v || '').toUpperCase();
+  if (v === 'MALICIOUS' || score >= 75) return 'var(--danger)';
+  if (v === 'SUSPICIOUS' || score >= 50) return 'var(--warn)';
+  if (v.includes('UNWANTED') || score >= 25) return '#e0c000';
+  return 'var(--ok)';
+}
+function fmtSize(b) {
+  if (!b) return '—';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'Z');   // UTC stored
+  return d.toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+async function load() {
+  const search = document.getElementById('search').value.trim();
+  const verdict = document.getElementById('verdict').value;
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (verdict) params.set('verdict', verdict);
+
+  const res = await fetch('/api/history?' + params.toString());
+  const data = await res.json();
+
+  const list = document.getElementById('list');
+
+  // Login optional — show a login prompt to guests
+  if (data.auth_required) {
+    document.getElementById('st-total').textContent = '—';
+    document.getElementById('st-mal').textContent = '—';
+    document.getElementById('st-clean').textContent = '—';
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🔒</div>' +
+      'Log in to view your scan history.<br><br>' +
+      '<a href="/login">Login</a> &nbsp;·&nbsp; <a href="/signup">Sign up</a></div>';
+    return;
+  }
+
+  const st = data.stats || {};
+  document.getElementById('st-total').textContent = st.total ?? 0;
+  document.getElementById('st-mal').textContent = st.malicious ?? 0;
+  document.getElementById('st-clean').textContent = st.clean ?? 0;
+  const scans = data.scans || [];
+  if (!scans.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>' +
+      (search || verdict !== 'ALL' ? 'No matching scans found.' :
+       'No scans yet. <a href="/">Scan your first file →</a>') + '</div>';
+    return;
+  }
+
+  list.innerHTML = scans.map(s => {
+    const col = scoreColor(s.score, s.verdict);
+    return `
+    <div class="scan-card" onclick="openScan(${s.id})">
+      <div class="sc-score" style="border-color:${col};color:${col};">
+        <div class="n">${s.score}</div><div class="l">RISK</div>
+      </div>
+      <div class="sc-main">
+        <div class="sc-name">${escapeHtml(s.filename || 'unknown')}</div>
+        <div class="sc-meta">${(s.file_type||'?').toUpperCase()} · ${fmtSize(s.size_bytes)} · ${(s.sha256||'').substring(0,16)}…</div>
+      </div>
+      <span class="sc-verdict ${verdictClass(s.verdict)}">${s.verdict || '—'}</span>
+      <div class="sc-time">${fmtTime(s.created_at)}</div>
+      <button class="sc-del" title="Delete" onclick="event.stopPropagation();delScan(${s.id})">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function openScan(id) {
+  window.location.href = '/?scan=' + id;   // index.html query se stored scan load karega
+}
+
+async function delScan(id) {
+  if (!confirm('Delete this scan?')) return;
+  await fetch('/api/scan/' + id, { method: 'DELETE' });
+  load();
+}
+
+document.getElementById('search').addEventListener('input', () => {
+  clearTimeout(_timer); _timer = setTimeout(load, 300);
+});
+document.getElementById('verdict').addEventListener('change', load);
+
+// Nav auth state
+fetch('/api/me').then(r => r.json()).then(d => {
+  const a = document.getElementById('auth-area');
+  if (!a) return;
+  if (d.user) {
+    a.innerHTML = '<span class="nav-badge" style="color:var(--accent-2);">👤 ' + d.user.username + '</span>' +
+                  '<a class="nav-badge" href="/logout">Logout</a>';
+  } else {
+    a.innerHTML = '<a class="nav-badge" href="/login">Login</a>' +
+                  '<a class="nav-badge" href="/signup" style="color:var(--accent-2);">Sign up</a>';
+  }
+}).catch(() => {});
+
+load();
+</script>
+</body>
+</html>

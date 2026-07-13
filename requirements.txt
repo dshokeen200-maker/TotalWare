@@ -1,0 +1,34 @@
+# ── Web framework ──
+Flask
+Flask-Login
+Werkzeug
+
+# ── Database ──
+SQLAlchemy
+
+# ── HTTP / config ──
+requests
+python-dotenv
+
+# ── File analyzers ──
+androguard          # APK static analysis
+yara-python         # YARA rule scanning
+pefile              # PE (.exe/.dll) analysis
+oletools            # Office macro (VBA) analysis
+scapy               # PCAP network capture analysis
+py7zr               # 7z archive support
+rarfile             # RAR archive support (needs the 'unrar' tool installed on the OS)
+ppdeep              # fuzzy hashing (pure-Python ssdeep)
+loguru              # logging (used by androguard helpers)
+
+# ── AI summary ──
+groq
+
+# ── Dynamic sandbox (APK detonation; optional, local-only) ──
+frida               # only needed if you run the local Android emulator sandbox
+
+# ── Production server (for deployment) ──
+gunicorn
+
+# ── Testing ──
+pytest
