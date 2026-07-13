@@ -14,3 +14,7 @@ Malware_Samples/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Internal planning notes (kept locally, not published)
+ROADMAP.md
+SANDBOX_PLAN.md
