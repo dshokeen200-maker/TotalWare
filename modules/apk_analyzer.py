@@ -1,9 +1,19 @@
 from androguard.misc import AnalyzeAPK
+try:
+    from androguard.core.apk import APK            # androguard 4.x
+except ImportError:                                # pragma: no cover
+    from androguard.core.bytecodes.apk import APK  # androguard 3.x
+import os
 import re
 import base64
 
 from loguru import logger
 logger.disable("androguard")
+
+# In low-memory environments (e.g. a 512MB free cloud instance), skip androguard's
+# heavy full-DEX Analysis and do lightweight manifest-level APK analysis only.
+# Set LOW_MEMORY=1 in the environment to enable it. Locally it stays off (full analysis).
+LOW_MEMORY = os.getenv("LOW_MEMORY", "").lower() in ("1", "true", "yes")
 
 SUSPICIOUS_APIS = {
     # name: (class descriptor, method, what it does)
@@ -202,9 +212,14 @@ def extract_deep_iocs(dx):
 
 def analyze_apk(file_path):
     try:
-        a, d, dx = AnalyzeAPK(file_path)
-
-        suspicious_apis = detect_suspicious_apis(dx)
+        if LOW_MEMORY:
+            # Lightweight: parse the manifest/resources only (no heavy DEX analysis)
+            a = APK(file_path)
+            dx = None
+            suspicious_apis = {"apis": []}          # needs DEX analysis — skipped in low-memory mode
+        else:
+            a, d, dx = AnalyzeAPK(file_path)
+            suspicious_apis = detect_suspicious_apis(dx)
 
         # Basic Info
         package_name = a.get_package()
@@ -290,8 +305,11 @@ def analyze_apk(file_path):
                 "weak_hash": weak_hash,
             })
 
-# Deep C2/IP extraction (public IPs + base64-hidden)
-        deep_iocs = extract_deep_iocs(dx)
+# Deep C2/IP extraction (public IPs + base64-hidden) — needs DEX analysis
+        if dx is not None:
+            deep_iocs = extract_deep_iocs(dx)
+        else:
+            deep_iocs = {"urls": [], "ips": [], "base64_decoded_iocs": []}
         urls = deep_iocs["urls"]
         ips = deep_iocs["ips"]
 
