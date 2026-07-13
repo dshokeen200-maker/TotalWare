@@ -24,8 +24,8 @@ loguru              # logging (used by androguard helpers)
 # ── AI summary ──
 groq
 
-# ── Dynamic sandbox (APK detonation; optional, local-only) ──
-frida               # only needed if you run the local Android emulator sandbox
+# ── Dynamic sandbox (APK detonation; LOCAL-ONLY, not installed in the cloud) ──
+# frida            # uncomment only for local Android emulator use; the code imports it lazily
 
 # ── Production server (for deployment) ──
 gunicorn
