@@ -209,14 +209,49 @@ def extract_deep_iocs(dx):
     return {"ips": sorted(ips), "urls": sorted(urls), "base64_decoded_iocs": b64_hits[:20]}
 
 
+# ── Low-memory helpers ───────────────────────────────
+# These read the raw DEX bytes and run regex directly, instead of building
+# androguard's heavy cross-reference Analysis (which is what blows past 512MB).
+# They recover the most important signal — URLs / IPs / suspicious APIs — cheaply.
+def _all_dex_bytes(a):
+    try:
+        return b"".join(a.get_all_dex())
+    except Exception:
+        return b""
+
+
+def _lightweight_iocs_from_apk(a):
+    """Extract URLs/IPs by regex over the raw DEX bytes (no heavy Analysis object)."""
+    blob = _all_dex_bytes(a)
+    ip_re  = re.compile(rb'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+    url_re = re.compile(rb'https?://[^\x00-\x1f\s\'"<>]{4,}')
+    urls = {u.decode("latin-1", errors="ignore") for u in url_re.findall(blob)}
+    ips = set()
+    for m in ip_re.findall(blob):
+        ip = m.decode("latin-1", errors="ignore")
+        if _is_public_ip(ip):
+            ips.add(ip)
+    return {"ips": sorted(ips), "urls": sorted(urls)[:300], "base64_decoded_iocs": []}
+
+
+def _lightweight_apis_from_apk(a):
+    """Flag a suspicious API when both its class descriptor and method name appear
+    in the DEX bytes — a cheap heuristic that skips method-level cross-referencing."""
+    blob = _all_dex_bytes(a)
+    found = []
+    for name, (cls, method, desc) in SUSPICIOUS_APIS.items():
+        if cls.encode() in blob and method.encode() in blob:
+            found.append({"behavior": name, "api": method, "description": desc})
+    return {"total_found": len(found), "apis": found}
+
 
 def analyze_apk(file_path):
     try:
         if LOW_MEMORY:
-            # Lightweight: parse the manifest/resources only (no heavy DEX analysis)
+            # Lightweight: parse the manifest + scan raw DEX bytes (no heavy Analysis object)
             a = APK(file_path)
             dx = None
-            suspicious_apis = {"apis": []}          # needs DEX analysis — skipped in low-memory mode
+            suspicious_apis = _lightweight_apis_from_apk(a)
         else:
             a, d, dx = AnalyzeAPK(file_path)
             suspicious_apis = detect_suspicious_apis(dx)
@@ -305,11 +340,11 @@ def analyze_apk(file_path):
                 "weak_hash": weak_hash,
             })
 
-# Deep C2/IP extraction (public IPs + base64-hidden) — needs DEX analysis
+# Deep C2/IP extraction — full Analysis locally, lightweight DEX-regex in low-memory mode
         if dx is not None:
             deep_iocs = extract_deep_iocs(dx)
         else:
-            deep_iocs = {"urls": [], "ips": [], "base64_decoded_iocs": []}
+            deep_iocs = _lightweight_iocs_from_apk(a)
         urls = deep_iocs["urls"]
         ips = deep_iocs["ips"]
 
